@@ -1,0 +1,300 @@
+<!--
+@license
+Copyright (c) 2015 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+
+<link rel="import" href="../../bower_components/polymer/polymer.html">
+<link rel="import" href="../../bower_components/paper-material/paper-material.html">
+<link rel="import" href="../../bower_components/iron-flex-layout/iron-flex-layout-classes.html">
+<link rel="import" href="../../bower_components/stop-watch/stop-watch.html">
+
+
+<dom-module id="ogs-game-clock">
+  <template>
+    <style>
+      :host {
+        display: block;
+        margin: 2px;
+        background-color: white;
+      }
+      
+      stop-watch {
+        --stop-watch-buttons: {
+          display: none;
+        };
+        
+        --stop-watch-face: {
+          font-size: 30px;
+        };
+      }
+    </style>
+    <style is="custom-style" include="iron-flex iron-flex-alignment"></style>
+    <div id="time_control_div">
+      <template is="dom-if" if="{{!main_time}}">
+        {{overtime_string}}
+      </template>
+      <stop-watch offset="{{stop_watch_info.offset}}"
+                  mode="timer"
+                  autostart="{{stop_watch_info.active}}"
+                  id="game_clock"
+                  hideMilliseconds="true">
+      </stop-watch>
+    </div>
+  </template>
+  <script>
+  (function() {
+    'use strict';
+
+    Polymer({
+      is: 'ogs-game-clock',
+
+      properties: {
+        ogs_id: {
+          type: String,
+          value: "235605",
+          notify: true
+        },
+        
+        game_id: {
+          type: String,
+          value: '5622988',
+          notify: true
+        },
+        
+        time_control: {
+          type: Object,
+          value: {},
+          notify: true
+        },
+        
+        stop_watch_info: {
+          type: Object,
+          value: {
+            initial_time: 6000,
+            offset: 6000,
+            active: false,
+            main_time_active: false
+          },
+          notify: true
+        },
+        
+        main_time: {
+          type: Boolean,
+          value: true
+        },
+        
+        overtime_string: {
+          notify: true,
+          computed: 'computeOvertimeString()'
+        }
+      },
+      
+      listeners: {
+        "gameLoaded": "gameLoaded",
+        "clock": "clock",
+        "timeUp": "timeUp"
+      },
+      
+      // ready: function () {
+      //   this.gameConnect();
+      // },
+      
+      gameLoaded: function(event) {
+        console.log("gameLoaded in clock");
+        var gamedata = event.detail
+        this.time_control = gamedata.time_control;
+        this.main_time = true;
+        
+        //needed to acess element attributes from inside the forEach loop
+        var element_scope = this;
+        var total_time_used = 0;
+        gamedata.moves.forEach(function(move, index, array) {
+          if (element_scope.ogs_id == gamedata.players.black.id) {
+            if (index % 2 == 1) {
+              total_time_used += move[2];
+            }
+          } else {
+            if (index % 2 == 0) {
+              total_time_used += move[2];
+            }
+          }
+        });
+        switch (this.time_control.time_control) {
+          //need to convert to ms for the stop-watch
+          case "byoyomi":
+            this.set('stop_watch_info.active', true);
+            this.set('stop_watch_info.offset', 1000*this.time_control.main_time);
+            this.set('stop_watch_info.initial_time', 1000*this.time_control.main_time);
+            break;
+          case "fischer":
+            this.set('stop_watch_info.active', true);
+            this.set('stop_watch_info.offset', 1000*this.time_control.initial_time);
+            this.set('stop_watch_info.initial_time', 1000*this.time_control.initial_time);
+            break;
+          case "simple":
+            this.set('stop_watch_info.active', true);
+            this.set('stop_watch_info.offset', 1000*this.time_control.per_move);
+            this.set('stop_watch_info.initial_time', 1000*this.time_control.per_move);
+            break;
+          case "canadian":
+            this.set('stop_watch_info.active', true);
+            this.set('stop_watch_info.offset', 1000*this.time_control.main_time);
+            this.set('stop_watch_info.initial_time', 1000*this.time_control.main_time);
+            break;
+          case "absolute":
+            this.set('stop_watch_info.active', true);
+            this.set('stop_watch_info.offset', 1000*this.time_control.total_time);
+            this.set('stop_watch_info.initial_time', 1000*this.time_control.total_time);
+            break;
+        }
+        //LOOK HERE make sure same units are being checked
+        //
+        //
+        //
+        //
+        //
+        console.log("total_time_used: " + total_time_used);
+        console.log("this.stop_watch_info.initial_time: " + this.stop_watch_info.initial_time);
+        console.log("this.main_time in gameLoaded: " + this.main_time)
+        console.log(gamedata.clock.black_time);
+        if (total_time_used >= this.stop_watch_info.initial_time) {
+          var player_clock = {};
+          if (gamedata.clock.black_player == this.ogs_id) {
+            player_clock = gamedata.clock.black_time;
+          } else {
+            player_clock = gamedata.clock.white_time;
+          }
+          
+          switch (this.time_control.time_control) {
+            case "byoyomi":
+              console.log("setting main time to false");
+              this.main_time = false;
+              this.time_control.periods = player_clock.periods;
+              break;
+            case "fischer":
+              
+              break;
+            case "simple":
+              
+              break;
+            case "canadian":
+              
+              break;
+            case "absolute":
+              
+              break;
+        } 
+        } else {
+          this.set('stop_watch_info.offset', this.stop_watch_info.initial_time - total_time_used);
+        }
+        
+        this.$.game_clock.start();
+        
+      },
+      
+      clock: function(event) {
+        console.log("clock");
+        var clock = event.detail;
+        console.log("    this.main_time: " + this.main_time);
+        if (clock.current_player == this.ogs_id) {
+          this.$.game_clock.start();
+          switch (this.time_control.time_control) {
+            case 'byoyomi':
+              
+              break;
+          }
+        } else {
+          
+          switch (this.time_control.time_control) {
+            case 'byoyomi':
+              if (this.main_time){
+                this.set('stop_watch_info.offset', this.$.game_clock.offset)
+              } else {
+                this.set('stop_watch_info.offset', this.time_control.period_time)
+              }
+              break;
+              
+            case "fischer":
+              this.set('stop_watch_info.offset', this.stop_watch_info.offset + this.time_control.time_increment);
+              break;
+            
+            case "simple":
+              this.set('stop_watch_info.offset', this.time_control.per_move);
+              break;
+              
+            case "canadian":
+              if (!main_time) {
+                this.set("time_control.stones_per_period", this.time_control.stones_per_period - 1);
+                if (this.time_control.stones_per_period < 1) {
+                  this.set('stop_watch_info.offset', this.time_control.period_time);
+                } else {
+                  this.set('stop_watch_info.offset', this.$.game_clock.offset);
+                }
+              }
+              break;
+              
+            default:
+              this.set('stop_watch_info.offset', this.$.game_clock.offset);
+          }
+          this.$.game_clock.stop();
+        }
+  
+      },
+      
+      timeUp: function() {
+        switch (this.time_control.time_control) {
+          //need to convert to ms for the stop-watch
+          case "byoyomi":
+            if (this.main_time) {
+              this.main_time = false;
+            }
+            
+            if (this.time_control.periods > 0) {
+              this.set('time_control.periods', this.time_control.periods - 1)
+              this.set('stop_watch_info.offset', 1000 * this.time_control.period_time)
+            } else {
+              this.fire('timeout');
+            }
+            break;
+          case "canadian":
+            if (this.main_time) {
+              this.main_time = false;
+            }
+            
+            if (this.time_control.stones_per_period > 0) {
+              this.fire('timeout');
+            }
+            break;
+          default:
+            this.fire('timeout');
+            break;
+        }
+      },
+      
+      computeOvertimeString: function() {
+        switch (this.time_control.time_control) {
+            case 'byoyomi':
+              return this.time_control.periods + " x ";
+              break;
+              
+            case "fischer":
+              break;
+            
+            case "simple":
+              break;
+              
+            case "canadian":
+              break;
+        }
+      }
+      
+    });
+  })();
+  </script>
+  <script src="../../bower_components/socket.io-client/socket.io.js"></script>
+</dom-module>

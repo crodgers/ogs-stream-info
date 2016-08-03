@@ -1,0 +1,21 @@
+{
+  "name": "polymer-starter-kit",
+  "private": true,
+  "dependencies": {
+    "iron-elements": "PolymerElements/iron-elements#^1.0.0",
+    "neon-elements": "PolymerElements/neon-elements#^1.0.0",
+    "page": "visionmedia/page.js#~1.6.4",
+    "paper-elements": "PolymerElements/paper-elements#^1.0.1",
+    "platinum-elements": "PolymerElements/platinum-elements#^1.1.0",
+    "polymer": "Polymer/polymer#^1.2.0",
+    "socket.io-client": "^1.4.6",
+    "stop-watch": "crodgers/stop-watch",
+    "ogs-stones-captured": "crodgers/ogs-stones-captured",
+    "app-layout": "PolymerElements/app-layout#^0.9.1",
+    "paper-input": "PolymerElements/paper-input#^1.1.14"
+  },
+  "devDependencies": {
+    "web-component-tester": "^4.0.0"
+  },
+  "ignore": []
+}

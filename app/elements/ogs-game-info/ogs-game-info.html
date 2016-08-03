@@ -1,0 +1,191 @@
+<!--
+@license
+Copyright (c) 2015 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+
+<link rel="import" href="../../bower_components/polymer/polymer.html">
+<link rel="import" href="../player-tag/player-tag.html">
+<link rel="import" href="../../bower_components/iron-flex-layout/iron-flex-layout-classes.html">
+<link rel="import" href="../ogs-game-clock/ogs-game-clock.html">
+<link rel="import" href="../../bower_components/app-layout/app-header/app-header.html">
+<link rel="import" href="../../bower_components/app-layout/app-toolbar/app-toolbar.html">
+<link rel="import" href="../../bower_components/paper-input/paper-input.html">
+<link rel="import" href="../../bower_components/ogs-stones-captured/ogs-stones-captured.html">
+
+<dom-module id="ogs-game-info">
+  <template>
+    <style>
+      :host {
+        display: block;
+        background-color: #EEE;
+      }
+      
+      player-tag {
+        width: 50%;
+      }
+      
+      ogs-game-clock {
+        width: 25%;
+        height: 50%;
+      }
+      
+      .content {
+        width: inherit;
+      }
+      
+      app-header {
+        width: 100%;
+        background-color: #4285f4;
+        color: #fff;
+      }
+      
+      paper-input {
+        --paper-input-container: {
+          background-color: ghostwhite;
+          border-radius: 5px;
+        };
+      }
+      
+    </style>
+    <style is="custom-style" include="iron-flex"></style>
+    
+    <iron-ajax
+      auto
+      url="{{ogs_game_url}}"
+      handle-as="json"
+      last-response="{{game}}">
+    </iron-ajax>
+    
+    <app-header>
+      <app-toolbar>
+        <paper-input label="OGS Game Number" value="{{ogs_game_num}}"></paper-input>
+      </app-toolbar>
+    </app-header>
+  
+    <div id="game-info">
+      <div id="player-tags" class="layout horizontal content">
+        <player-tag ogs_id="{{game.players.black.id}}">
+        </player-tag>
+        <player-tag ogs_id="{{game.players.white.id}}">
+        </player-tag>
+      </div>
+
+      <div id="clocks" class="layout horizontal center-justified content">
+        <ogs-stones-captured game_id="{{ogs_game_num}}"
+                             id="black_prisoners">
+          
+        </ogs-stones-captured>
+
+        <ogs-game-clock game_id="{{ogs_game_num}}"
+                        ogs_id="{{game.players.black.id}}"
+                        id="black_clock"
+                        on-gameLoaded="clock_game_loaded"
+                        on-undo="clock_undo">
+        </ogs-game-clock>
+        <ogs-game-clock game_id="{{ogs_game_num}}"
+                        ogs_id="{{game.players.white.id}}"
+                        id="white_clock"
+                        on-gameLoaded="clock_game_loaded"
+                        on-undo="clock_undo">
+        </ogs-game-clock>
+
+        <ogs-stones-captured color="white"
+                             game_id="{{ogs_game_num}}"
+                             id="white_prisoners">
+        </ogs-stones-captured>
+
+      </div>
+    </div>
+  </template>
+
+  <script>
+  (function() {
+    'use strict';
+
+    Polymer({
+      is: 'ogs-game-info',
+
+      properties: {
+        ogs_game_num: {
+          type: String,
+          value: "5786211",
+          observer: '_gameNumChanged'
+        },
+        
+        ogs_game_url: {
+          type: String,
+          computed: "gameUrl(ogs_game_num)"
+        },
+        
+        game_loaded: {
+          type: Boolean,
+          value: false
+        }
+      },
+      
+      listeners: {
+        'gameLoaded': 'gameLoaded'
+      },
+      
+      ready: function() {
+        this.gameConnect();
+      },
+      
+      gameConnect: function() {
+        var element_scope = this;
+        this.socket = io.connect("https://ggs.online-go.com");
+        this.socket.emit('game/connect', {"game_id": element_scope.ogs_game_num});
+        this.socket.on("game/" + element_scope.ogs_game_num + "/gamedata", function(gamedata) {
+          element_scope.fire('gameLoaded', gamedata, {node: element_scope.$.black_clock});
+          element_scope.fire('gameLoaded', gamedata, {node: element_scope.$.white_clock});
+          element_scope.fire('gameLoaded', gamedata, {node: element_scope.$.black_prisoners});
+          element_scope.fire('gameLoaded', gamedata, {node: element_scope.$.white_prisoners});
+          element_scope.fire('gameLoaded', gamedata);
+        });
+      },
+      
+      gameLoaded: function(gamedata) {
+        if (this.game_loaded){
+          return;
+        } else {
+          var element_scope = this
+          this.socket.on("game/" + element_scope.ogs_game_num + "/move", function(move) {
+            element_scope.fire('move', move);
+            element_scope.fire('move', move, {node: element_scope.$.black_prisoners});
+            element_scope.fire('move', move, {node: element_scope.$.white_prisoners});
+          });
+          
+          this.socket.on("game/" + element_scope.ogs_game_num + "/clock", function(clock) {
+            element_scope.fire('clock', clock, {node: element_scope.$.black_clock});
+            element_scope.fire('clock', clock, {node: element_scope.$.white_clock});
+          });
+          
+          this.socket.on("game/" + element_scope.ogs_game_num + "/undo/accept", function(undo) {
+            element_scope.fire('undo', undo, {node: element_scope.$.black_clock});
+            element_scope.fire('undo', undo, {node: element_scope.$.white_clock});
+          });
+        }
+      },
+      
+      gameUrl: function(id) {
+        return "https://online-go.com/api/v1/games/" + id;
+      },
+      
+      _gameNumChanged: function(newValue, oldValue) {
+        if (oldValue) {
+          console.log('calling gameConnect from game-info')
+          this.set('game_loaded', false);
+          this.gameConnect();
+        }
+      }
+      
+    });
+  })();
+  </script>
+  <script src="../../bower_components/socket.io-client/socket.io.js"></script>
+</dom-module>
